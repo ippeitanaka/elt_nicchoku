@@ -1,0 +1,256 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 280 40% 98%;
+    --foreground: 280 10% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 280 10% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 280 10% 20%;
+
+    --primary: 320 80% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 70% 85%;
+    --secondary-foreground: 180 10% 20%;
+
+    --muted: 280 20% 92%;
+    --muted-foreground: 280 5% 45%;
+
+    --accent: 250 70% 90%;
+    --accent-foreground: 250 10% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 280 20% 88%;
+    --input: 280 20% 88%;
+    --ring: 320 80% 60%;
+
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 280 20% 10%;
+    --foreground: 280 10% 90%;
+
+    --card: 280 20% 12%;
+    --card-foreground: 280 10% 90%;
+
+    --popover: 280 20% 12%;
+    --popover-foreground: 280 10% 90%;
+
+    --primary: 320 70% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 50% 30%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 280 20% 20%;
+    --muted-foreground: 280 10% 70%;
+
+    --accent: 250 50% 25%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 280 20% 25%;
+    --input: 280 20% 25%;
+    --ring: 320 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* かわいいスタイルの追加 */
+.cute-card {
+  @apply rounded-2xl border-2 border-primary/20 shadow-lg transition-all hover:shadow-md;
+  background: linear-gradient(to bottom right, hsl(var(--card)), hsl(var(--background)));
+}
+
+.cute-header {
+  @apply rounded-t-2xl bg-gradient-to-r from-primary/20 to-secondary/30 p-4;
+}
+
+.cute-button {
+  @apply rounded-full shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95;
+}
+
+.cute-input {
+  @apply rounded-xl border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/30;
+}
+
+.cute-checkbox {
+  @apply rounded-full text-primary focus:ring-primary/30;
+}
+
+.cute-radio {
+  @apply text-primary focus:ring-primary/30;
+}
+
+.cute-select {
+  @apply rounded-xl border-2 border-primary/20;
+}
+
+.cute-textarea {
+  @apply rounded-xl border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/30;
+}
+
+/* ラベルとタイトルのスタイル改善 */
+.form-label {
+  @apply font-medium text-gray-700;
+}
+
+.section-title {
+  @apply flex items-center font-bold text-gray-800;
+}
+
+.section-title-icon {
+  @apply mr-2 text-primary;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: white !important;
+  }
+
+  .printable-journal {
+    page-break-after: always;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 10mm;
+    background-color: white !important;
+  }
+
+  header,
+  footer,
+  nav,
+  .no-print,
+  button,
+  .preview-container {
+    display: none !important;
+  }
+
+  .print-content {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100%;
+  }
+}
+
+/* 印刷プレビュー用スタイル */
+.preview-container {
+  max-width: 210mm; /* A4の幅 */
+  margin: 0 auto;
+  background-color: white;
+}
+
+.printable-journal {
+  min-height: 297mm; /* A4の高さ */
+  box-sizing: border-box;
+  padding: 10mm;
+  position: relative;
+}
+
+/* 印刷用コンテナ（通常は非表示） */
+.print-content {
+  display: none;
+}
+
+/* モバイル対応のための追加スタイル */
+@media (max-width: 640px) {
+  .printable-journal {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .preview-container {
+    max-width: 100%;
+    padding: 0;
+  }
+}
+
+/* テーブルのレスポンシブ対応 */
+@media (max-width: 768px) {
+  .responsive-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 長いテキストの省略表示 */
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* モバイル向けのフォントサイズ調整 */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .text-sm {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* かわいいアニメーション */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* かわいいアイコン装飾 */
+.cute-icon {
+  @apply rounded-full bg-primary/10 p-2 text-primary;
+}
