@@ -43,8 +43,9 @@ export type Checklist = {
   journal_id: string
   pc: boolean
   mic: boolean
-  chalk: boolean
+  prints: boolean
   journal: boolean
+  supplies: boolean
 }
 
 // 日誌データの取得
@@ -101,8 +102,9 @@ export async function getJournalById(id: string) {
     checklist: checklist || {
       pc: false,
       mic: false,
-      chalk: false,
+      prints: false,
       journal: false,
+      supplies: false,
     },
   }
 }
@@ -182,8 +184,9 @@ export async function saveJournal(journalData: any) {
       journal_id: journalId,
       pc: journalData.checklist.pc || false,
       mic: journalData.checklist.mic || false,
-      chalk: journalData.checklist.chalk || false,
+      prints: journalData.checklist.prints || false,
       journal: journalData.checklist.journal || false,
+      supplies: journalData.checklist.supplies || false,
     }
 
     const { error: checklistError } = await supabase.from("checklists").insert([checklistToSave])
@@ -279,8 +282,9 @@ export async function updateJournal(id: string, journalData: any) {
     const checklistToUpdate: Partial<Checklist> = {
       pc: journalData.checklist.pc || false,
       mic: journalData.checklist.mic || false,
-      chalk: journalData.checklist.chalk || false,
+      prints: journalData.checklist.prints || false,
       journal: journalData.checklist.journal || false,
+      supplies: journalData.checklist.supplies || false,
     }
 
     const { error: checklistError } = await supabase.from("checklists").update(checklistToUpdate).eq("journal_id", id)
