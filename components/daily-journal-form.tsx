@@ -34,10 +34,11 @@ import { saveJournal } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 const checklistItems = [
-  { id: "pc", label: "パソコン返却（モニターとの接続コードは返却しない）" },
-  { id: "mic", label: "マイク返却（ピンマイクのみ返却）" },
-  { id: "chalk", label: "チョーク返却" },
-  { id: "journal", label: "日直日誌入力" },
+  { id: "pc", label: "パソコン返却（プロジェクターと接続するコードは返却しない）" },
+  { id: "mic", label: "マイク確認（ピンマイクのみ返却）" },
+  { id: "prints", label: "余ったプリント返却" },
+  { id: "journal", label: "日誌入力・保存" },
+  { id: "supplies", label: "備品確認" },
 ]
 
 const dayClasses = [
@@ -61,7 +62,13 @@ export default function DailyJournalForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [weather, setWeather] = useState<string>("sunny")
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({})
+  const [checklist, setChecklist] = useState({
+    pc: false,
+    mic: false,
+    prints: false,
+    journal: false,
+    supplies: false,
+  })
   const [activeTab, setActiveTab] = useState<string>("day")
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [dailyRep1, setDailyRep1] = useState<string>("")
@@ -143,8 +150,9 @@ export default function DailyJournalForm() {
         checklist: {
           pc: checklist.pc || false,
           mic: checklist.mic || false,
-          chalk: checklist.chalk || false,
+          prints: checklist.prints || false,
           journal: checklist.journal || false,
+          supplies: checklist.supplies || false,
         },
         currentCleaningDuty,
         nextCleaningDuty,
@@ -186,7 +194,13 @@ export default function DailyJournalForm() {
     // フォームをリセット
     setDate(new Date())
     setWeather("sunny")
-    setChecklist({})
+    setChecklist({
+      pc: false,
+      mic: false,
+      prints: false,
+      journal: false,
+      supplies: false,
+    })
     setSelectedClass("")
     setDailyRep1("")
     setDailyRep2("")
