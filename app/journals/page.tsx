@@ -62,8 +62,17 @@ export default function JournalsPage() {
   useEffect(() => {
     const fetchJournals = async () => {
       try {
+        setIsLoading(true)
+        console.log("日誌データを取得中...")
         const data = await getJournals()
-        setJournals(data)
+        console.log("取得した日誌データ:", data)
+
+        if (Array.isArray(data)) {
+          setJournals(data)
+        } else {
+          console.error("取得したデータが配列ではありません:", data)
+          setJournals([])
+        }
       } catch (error) {
         console.error("日誌データの取得エラー:", error)
         toast({
@@ -71,6 +80,7 @@ export default function JournalsPage() {
           description: "日誌データの取得に失敗しました",
           variant: "destructive",
         })
+        setJournals([])
       } finally {
         setIsLoading(false)
       }
@@ -132,11 +142,14 @@ export default function JournalsPage() {
 
   // 検索とフィルタリング
   const filteredJournals = journals.filter((journal) => {
+    // デバッグ用にジャーナルデータをログ出力
+    console.log("フィルタリング対象のジャーナル:", journal)
+
     const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
-      journal.date.toLowerCase().includes(searchLower) ||
-      journal.daily_rep_1.toLowerCase().includes(searchLower) ||
-      journal.daily_rep_2.toLowerCase().includes(searchLower) ||
+      journal.date?.toLowerCase().includes(searchLower) ||
+      journal.daily_rep_1?.toLowerCase().includes(searchLower) ||
+      journal.daily_rep_2?.toLowerCase().includes(searchLower) ||
       getClassName(journal.class_name).toLowerCase().includes(searchLower)
 
     // 区分フィルター

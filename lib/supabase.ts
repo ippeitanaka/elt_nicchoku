@@ -185,6 +185,9 @@ export async function getJournals() {
     }
 
     try {
+      // データ取得前にログを出力
+      console.log("Supabaseからデータを取得しています...")
+
       const { data, error } = await supabase.from("journals").select("*").order("date", { ascending: false })
 
       if (error) {
@@ -192,6 +195,10 @@ export async function getJournals() {
         // エラー時はオフラインデータを返す
         return getOfflineJournals()
       }
+
+      // 取得したデータをログ出力
+      console.log("取得したデータ:", data)
+      console.log("データ件数:", data ? data.length : 0)
 
       return data
     } catch (fetchError) {
@@ -220,6 +227,8 @@ export async function getJournalById(id: string) {
       return null
     }
 
+    console.log(`ID: ${id} の日誌データを取得中...`)
+
     // 日誌の基本情報を取得
     const { data: journal, error: journalError } = await supabase.from("journals").select("*").eq("id", id).single()
 
@@ -227,6 +236,8 @@ export async function getJournalById(id: string) {
       console.error("日誌データの取得エラー:", journalError)
       return null
     }
+
+    console.log("取得した日誌データ:", journal)
 
     // 講義情報を取得
     const { data: periods, error: periodsError } = await supabase
@@ -239,6 +250,16 @@ export async function getJournalById(id: string) {
       console.error("講義情報の取得エラー:", periodsError)
       return null
     }
+
+    console.log("取得した講義情報:", periods)
+
+    // 文字列の"true"/"false"をブール値に変換
+    const processedPeriods = periods
+      ? periods.map((period) => ({
+          ...period,
+          is_night: period.is_night === "true" || period.is_night === true,
+        }))
+      : []
 
     // チェックリスト情報を取得
     const { data: checklist, error: checklistError } = await supabase
@@ -253,17 +274,31 @@ export async function getJournalById(id: string) {
       return null
     }
 
+    console.log("取得したチェックリスト情報:", checklist)
+
+    // 文字列の"true"/"false"をブール値に変換
+    const processedChecklist = checklist
+      ? {
+          ...checklist,
+          pc: checklist.pc === "true" || checklist.pc === true,
+          mic: checklist.mic === "true" || checklist.mic === true,
+          prints: checklist.prints === "true" || checklist.prints === true,
+          journal: checklist.journal === "true" || checklist.journal === true,
+          supplies: checklist.supplies === "true" || checklist.supplies === true,
+        }
+      : {
+          pc: false,
+          mic: false,
+          prints: false,
+          journal: false,
+          supplies: false,
+        }
+
     // 日誌データを整形して返す
     return {
       ...journal,
-      periods: periods || [],
-      checklist: checklist || {
-        pc: false,
-        mic: false,
-        prints: false,
-        journal: false,
-        supplies: false,
-      },
+      periods: processedPeriods,
+      checklist: processedChecklist,
     }
   } catch (error) {
     console.error("日誌データの取得中に予期せぬエラーが発生しました:", error)
