@@ -38,15 +38,15 @@ export type Period = {
   is_night: boolean
 }
 
-// Checklistの型定義を更新します
+// Checklistの型定義
 export type Checklist = {
   id?: string
   journal_id: string
   pc: boolean
   mic: boolean
-  prints: boolean // chalkからprintsに変更
+  prints: boolean
   journal: boolean
-  supplies: boolean // 新しいフィールドを追加
+  supplies: boolean
 }
 
 // 日誌データの取得
@@ -113,7 +113,8 @@ export async function getJournalById(id: string) {
 // 日誌データの保存
 export async function saveJournal(journalData: any) {
   try {
-    // トランザクション的な処理を手動で行う
+    console.log("Supabaseに保存を開始します:", journalData)
+
     // 1. 日誌の基本情報を保存
     const journalToSave: Journal = {
       date: journalData.date,
@@ -131,6 +132,7 @@ export async function saveJournal(journalData: any) {
       next_cleaning_duty: journalData.nextCleaningDuty || "",
     }
 
+    console.log("保存する日誌データ:", journalToSave)
     const { data: journal, error: journalError } = await supabase.from("journals").insert([journalToSave]).select()
 
     if (journalError) {
@@ -138,46 +140,59 @@ export async function saveJournal(journalData: any) {
       return null
     }
 
+    if (!journal || journal.length === 0) {
+      console.error("日誌データが正常に保存されませんでした")
+      return null
+    }
+
     const journalId = journal[0].id
+    console.log("保存された日誌ID:", journalId)
 
     // 2. 講義情報を保存
     const periodsToSave: Period[] = []
 
     // 昼間部の講義情報
     journalData.dayPeriods.forEach((period: any, index: number) => {
-      periodsToSave.push({
-        journal_id: journalId,
-        period_number: index + 1,
-        subject: period.subject || "",
-        teacher: period.teacher || "",
-        content: period.content || "",
-        absences: period.absences || "",
-        in_out: period.inOut || "",
-        is_night: false,
-      })
+      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
+        periodsToSave.push({
+          journal_id: journalId,
+          period_number: index + 1,
+          subject: period.subject || "",
+          teacher: period.teacher || "",
+          content: period.content || "",
+          absences: period.absences || "",
+          in_out: period.inOut || "",
+          is_night: false,
+        })
+      }
     })
 
     // 夜間部の講義情報
     journalData.nightPeriods.forEach((period: any, index: number) => {
-      periodsToSave.push({
-        journal_id: journalId,
-        period_number: index + 1,
-        subject: period.subject || "",
-        teacher: period.teacher || "",
-        content: period.content || "",
-        absences: period.absences || "",
-        in_out: period.inOut || "",
-        is_night: true,
-      })
+      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
+        periodsToSave.push({
+          journal_id: journalId,
+          period_number: index + 1,
+          subject: period.subject || "",
+          teacher: period.teacher || "",
+          content: period.content || "",
+          absences: period.absences || "",
+          in_out: period.inOut || "",
+          is_night: true,
+        })
+      }
     })
 
-    const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
+    console.log("保存する講義データ:", periodsToSave)
+    if (periodsToSave.length > 0) {
+      const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
 
-    if (periodsError) {
-      console.error("講義情報の保存エラー:", periodsError)
-      // エラーが発生した場合は、既に保存した日誌データを削除
-      await supabase.from("journals").delete().eq("id", journalId)
-      return null
+      if (periodsError) {
+        console.error("講義情報の保存エラー:", periodsError)
+        // エラーが発生した場合は、既に保存した日誌データを削除
+        await supabase.from("journals").delete().eq("id", journalId)
+        return null
+      }
     }
 
     // 3. チェックリスト情報を保存
@@ -190,6 +205,7 @@ export async function saveJournal(journalData: any) {
       supplies: journalData.checklist.supplies || false,
     }
 
+    console.log("保存するチェックリストデータ:", checklistToSave)
     const { error: checklistError } = await supabase.from("checklists").insert([checklistToSave])
 
     if (checklistError) {
@@ -199,6 +215,7 @@ export async function saveJournal(journalData: any) {
       return null
     }
 
+    console.log("すべてのデータが正常に保存されました")
     return journalId
   } catch (error) {
     console.error("保存処理中の予期せぬエラー:", error)
@@ -246,37 +263,43 @@ export async function updateJournal(id: string, journalData: any) {
 
     // 昼間部の講義情報
     journalData.dayPeriods.forEach((period: any, index: number) => {
-      periodsToSave.push({
-        journal_id: id,
-        period_number: index + 1,
-        subject: period.subject || "",
-        teacher: period.teacher || "",
-        content: period.content || "",
-        absences: period.absences || "",
-        in_out: period.inOut || "",
-        is_night: false,
-      })
+      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
+        periodsToSave.push({
+          journal_id: id,
+          period_number: index + 1,
+          subject: period.subject || "",
+          teacher: period.teacher || "",
+          content: period.content || "",
+          absences: period.absences || "",
+          in_out: period.inOut || "",
+          is_night: false,
+        })
+      }
     })
 
     // 夜間部の講義情報
     journalData.nightPeriods.forEach((period: any, index: number) => {
-      periodsToSave.push({
-        journal_id: id,
-        period_number: index + 1,
-        subject: period.subject || "",
-        teacher: period.teacher || "",
-        content: period.content || "",
-        absences: period.absences || "",
-        in_out: period.inOut || "",
-        is_night: true,
-      })
+      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
+        periodsToSave.push({
+          journal_id: id,
+          period_number: index + 1,
+          subject: period.subject || "",
+          teacher: period.teacher || "",
+          content: period.content || "",
+          absences: period.absences || "",
+          in_out: period.inOut || "",
+          is_night: true,
+        })
+      }
     })
 
-    const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
+    if (periodsToSave.length > 0) {
+      const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
 
-    if (periodsError) {
-      console.error("講義情報の保存エラー:", periodsError)
-      return false
+      if (periodsError) {
+        console.error("講義情報の保存エラー:", periodsError)
+        return false
+      }
     }
 
     // 4. チェックリスト情報を更新

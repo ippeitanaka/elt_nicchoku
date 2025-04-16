@@ -16,6 +16,7 @@ import {
   MessageCircle,
   CheckSquare,
   UserPlus,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -177,6 +178,7 @@ export default function DailyJournalForm() {
           description: "日誌の保存に失敗しました。ネットワーク接続とSupabaseの設定を確認してください。",
           variant: "destructive",
         })
+        setIsSubmitting(false)
       }
     } catch (error) {
       console.error("保存エラー:", error)
@@ -185,7 +187,6 @@ export default function DailyJournalForm() {
         description: `日誌の保存中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
         variant: "destructive",
       })
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -683,8 +684,19 @@ export default function DailyJournalForm() {
           >
             リセット
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="cute-button bg-primary hover:bg-primary/90">
-            {isSubmitting ? "保存中..." : "保存"}
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="cute-button bg-primary hover:bg-primary/90 flex items-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                保存中...
+              </>
+            ) : (
+              "保存"
+            )}
           </Button>
         </CardFooter>
       </Tabs>
