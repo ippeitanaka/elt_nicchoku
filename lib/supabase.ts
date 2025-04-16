@@ -28,16 +28,36 @@ export function getSupabase() {
   return supabaseInstance
 }
 
-// ネットワーク接続のチェック
+// ネットワーク接続のチェック関数を改善
 export async function checkNetworkConnection(): Promise<boolean> {
   try {
-    // シンプルなネットワーク接続チェック
-    await fetch("https://www.google.com", {
-      mode: "no-cors",
-      // 短いタイムアウトを設定
-      signal: AbortSignal.timeout(3000),
-    })
-    return true
+    // より信頼性の高いネットワークチェック
+    // 複数のURLを試す
+    const urls = ["https://www.google.com", "https://www.cloudflare.com", "https://www.apple.com"]
+
+    // いずれかのURLに接続できればオンラインと判断
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          method: "HEAD",
+          mode: "no-cors",
+          cache: "no-store",
+          signal: AbortSignal.timeout(2000), // 2秒でタイムアウト
+        })
+
+        if (response) {
+          return true
+        }
+      } catch (e) {
+        console.log(`${url}への接続に失敗: ${e}`)
+        // このURLへの接続は失敗したが、次のURLを試す
+        continue
+      }
+    }
+
+    // すべてのURLへの接続が失敗した場合
+    console.error("すべてのネットワーク接続チェックに失敗しました")
+    return false
   } catch (error) {
     console.error("ネットワーク接続チェックエラー:", error)
     return false
@@ -174,132 +194,29 @@ export function getOfflineJournals(): any[] {
   }
 }
 
-// 日誌データの取得
+// 日誌データの取得 - APIルートを使用するため、この関数は使用しない
 export async function getJournals() {
-  try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      console.error("Supabaseクライアントが初期化されていません")
-      // オフラインデータを返す
-      return getOfflineJournals()
-    }
-
-    try {
-      // データ取得前にログを出力
-      console.log("Supabaseからデータを取得しています...")
-
-      const { data, error } = await supabase.from("journals").select("*").order("date", { ascending: false })
-
-      if (error) {
-        console.error("日誌データの取得エラー:", error)
-        // エラー時はオフラインデータを返す
-        return getOfflineJournals()
-      }
-
-      // 取得したデータをログ出力
-      console.log("取得したデータ:", data)
-      console.log("データ件数:", data ? data.length : 0)
-
-      return data
-    } catch (fetchError) {
-      console.error("日誌データのフェッチエラー:", fetchError)
-      // フェッチエラー時はオフラインデータを返す
-      return getOfflineJournals()
-    }
-  } catch (error) {
-    console.error("日誌データの取得中に予期せぬエラーが発生しました:", error)
-    return getOfflineJournals()
-  }
+  // この関数はAPIルートに置き換えられるため、
+  // 単純にオフラインデータを返すだけにする
+  return getOfflineJournals()
 }
 
 // 特定の日誌データの取得
 export async function getJournalById(id: string) {
   // オフラインIDの場合はローカルストレージから取得
-  if (id.startsWith("offline_")) {
+  if (id.startsWith("offline_") || id.startsWith("sample-")) {
     const offlineJournals = getOfflineJournals()
     return offlineJournals.find((journal) => journal.id === id) || null
   }
 
   try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      console.error("Supabaseクライアントが初期化されていません")
-      return null
+    // APIルートを使用してデータを取得
+    const response = await fetch(`/api/journals/${id}`)
+    if (!response.ok) {
+      throw new Error(`APIエラー: ${response.status}`)
     }
 
-    console.log(`ID: ${id} の日誌データを取得中...`)
-
-    // 日誌の基本情報を取得
-    const { data: journal, error: journalError } = await supabase.from("journals").select("*").eq("id", id).single()
-
-    if (journalError) {
-      console.error("日誌データの取得エラー:", journalError)
-      return null
-    }
-
-    console.log("取得した日誌データ:", journal)
-
-    // 講義情報を取得
-    const { data: periods, error: periodsError } = await supabase
-      .from("periods")
-      .select("*")
-      .eq("journal_id", id)
-      .order("period_number", { ascending: true })
-
-    if (periodsError) {
-      console.error("講義情報の取得エラー:", periodsError)
-      return null
-    }
-
-    console.log("取得した講義情報:", periods)
-
-    // 文字列の"true"/"false"をブール値に変換
-    const processedPeriods = periods
-      ? periods.map((period) => ({
-          ...period,
-          is_night: period.is_night === "true" || period.is_night === true,
-        }))
-      : []
-
-    // チェックリスト情報を取得
-    const { data: checklist, error: checklistError } = await supabase
-      .from("checklists")
-      .select("*")
-      .eq("journal_id", id)
-      .single()
-
-    if (checklistError && checklistError.code !== "PGRST116") {
-      // PGRST116はデータが見つからない場合のエラーコード
-      console.error("チェックリスト情報の取得エラー:", checklistError)
-      return null
-    }
-
-    console.log("取得したチェックリスト情報:", checklist)
-
-    // 文字列の"true"/"false"をブール値に変換
-    const processedChecklist = checklist
-      ? {
-          ...checklist,
-          pc: checklist.pc === "true" || checklist.pc === true,
-          mic: checklist.mic === "true" || checklist.mic === true,
-          prints: checklist.prints === "true" || checklist.prints === true,
-          journal: checklist.journal === "true" || checklist.journal === true,
-          supplies: checklist.supplies === "true" || checklist.supplies === true,
-        }
-      : {
-          pc: false,
-          mic: false,
-          prints: false,
-          journal: false,
-          supplies: false,
-        }
-
-    // 日誌データを整形して返す
-    return {
-      ...journal,
-      periods: processedPeriods,
-      checklist: processedChecklist,
-    }
+    return await response.json()
   } catch (error) {
     console.error("日誌データの取得中に予期せぬエラーが発生しました:", error)
     return null
@@ -314,124 +231,28 @@ export async function saveJournal(journalData: any, isOfflineMode = false) {
   }
 
   try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      console.error("Supabaseクライアントが初期化されていません")
-      // オフラインモードに切り替え
+    // ネットワーク接続をチェック
+    const isOnline = await checkNetworkConnection()
+    if (!isOnline) {
+      console.log("ネットワーク接続がないため、オフラインモードで保存します")
       return saveOfflineJournal(journalData)
     }
 
-    console.log("Supabaseに保存を開始します:", journalData)
+    // APIルートを使用してデータを保存
+    const response = await fetch("/api/journals", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(journalData),
+    })
 
-    // 1. 日誌の基本情報を保存
-    const journalToSave: Journal = {
-      date: journalData.date,
-      weather: journalData.weather,
-      day_type: journalData.dayType,
-      class_name: journalData.className,
-      daily_rep_1: journalData.dailyRep[0] || "",
-      daily_rep_2: journalData.dailyRep[1] || "",
-      next_daily_rep_1: journalData.nextDailyRep[0] || "",
-      next_daily_rep_2: journalData.nextDailyRep[1] || "",
-      daily_comment: journalData.dailyComment,
-      teacher_comment: journalData.teacherComment,
-      substitute: journalData.substitute || "",
-      current_cleaning_duty: journalData.currentCleaningDuty || "",
-      next_cleaning_duty: journalData.nextCleaningDuty || "",
+    if (!response.ok) {
+      throw new Error(`APIエラー: ${response.status}`)
     }
 
-    console.log("保存する日誌データ:", journalToSave)
-
-    try {
-      const { data: journal, error: journalError } = await supabase.from("journals").insert([journalToSave]).select()
-
-      if (journalError) {
-        console.error("日誌データの保存エラー:", journalError)
-        // エラー時はオフラインモードに切り替え
-        return saveOfflineJournal(journalData)
-      }
-
-      if (!journal || journal.length === 0) {
-        console.error("日誌データが正常に保存されませんでした")
-        return saveOfflineJournal(journalData)
-      }
-
-      const journalId = journal[0].id
-      console.log("保存された日誌ID:", journalId)
-
-      // 2. 講義情報を保存
-      const periodsToSave: Period[] = []
-
-      // 昼間部の講義情報
-      journalData.dayPeriods.forEach((period: any, index: number) => {
-        if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
-          periodsToSave.push({
-            journal_id: journalId,
-            period_number: index + 1,
-            subject: period.subject || "",
-            teacher: period.teacher || "",
-            content: period.content || "",
-            absences: period.absences || "",
-            in_out: period.inOut || "",
-            is_night: false,
-          })
-        }
-      })
-
-      // 夜間部の講義情報
-      journalData.nightPeriods.forEach((period: any, index: number) => {
-        if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
-          periodsToSave.push({
-            journal_id: journalId,
-            period_number: index + 1,
-            subject: period.subject || "",
-            teacher: period.teacher || "",
-            content: period.content || "",
-            absences: period.absences || "",
-            in_out: period.inOut || "",
-            is_night: true,
-          })
-        }
-      })
-
-      console.log("保存する講義データ:", periodsToSave)
-      if (periodsToSave.length > 0) {
-        const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
-
-        if (periodsError) {
-          console.error("講義情報の保存エラー:", periodsError)
-          // エラーが発生した場合は、既に保存した日誌データを削除
-          await supabase.from("journals").delete().eq("id", journalId)
-          return saveOfflineJournal(journalData)
-        }
-      }
-
-      // 3. チェックリスト情報を保存
-      const checklistToSave: Checklist = {
-        journal_id: journalId,
-        pc: journalData.checklist.pc || false,
-        mic: journalData.checklist.mic || false,
-        prints: journalData.checklist.prints || false,
-        journal: journalData.checklist.journal || false,
-        supplies: journalData.checklist.supplies || false,
-      }
-
-      console.log("保存するチェックリストデータ:", checklistToSave)
-      const { error: checklistError } = await supabase.from("checklists").insert([checklistToSave])
-
-      if (checklistError) {
-        console.error("チェックリスト情報の保存エラー:", checklistError)
-        // エラーが発生した場合は、既に保存したデータを削除
-        await supabase.from("journals").delete().eq("id", journalId)
-        return saveOfflineJournal(journalData)
-      }
-
-      console.log("すべてのデータが正常に保存されました")
-      return journalId
-    } catch (fetchError) {
-      console.error("データ保存中のフェッチエラー:", fetchError)
-      return saveOfflineJournal(journalData)
-    }
+    const result = await response.json()
+    return result.id
   } catch (error) {
     console.error("保存処理中の予期せぬエラー:", error)
     return saveOfflineJournal(journalData)
@@ -441,7 +262,7 @@ export async function saveJournal(journalData: any, isOfflineMode = false) {
 // 日誌データの更新
 export async function updateJournal(id: string, journalData: any) {
   // オフラインIDの場合はローカルストレージを更新
-  if (id.startsWith("offline_")) {
+  if (id.startsWith("offline_") || id.startsWith("sample-")) {
     try {
       const offlineJournals = getOfflineJournals()
       const updatedJournals = offlineJournals.map((journal) =>
@@ -456,102 +277,24 @@ export async function updateJournal(id: string, journalData: any) {
   }
 
   try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      console.error("Supabaseクライアントが初期化されていません")
+    // ネットワーク接続をチェック
+    const isOnline = await checkNetworkConnection()
+    if (!isOnline) {
+      console.log("ネットワーク接続がないため、更新できません")
       return false
     }
 
-    // 1. 日誌の基本情報を更新
-    const journalToUpdate: Partial<Journal> = {
-      date: journalData.date,
-      weather: journalData.weather,
-      day_type: journalData.dayType,
-      class_name: journalData.className,
-      daily_rep_1: journalData.dailyRep[0] || "",
-      daily_rep_2: journalData.dailyRep[1] || "",
-      next_daily_rep_1: journalData.nextDailyRep[0] || "",
-      next_daily_rep_2: journalData.nextDailyRep[1] || "",
-      daily_comment: journalData.dailyComment,
-      teacher_comment: journalData.teacherComment,
-      substitute: journalData.substitute || "",
-      current_cleaning_duty: journalData.currentCleaningDuty || "",
-      next_cleaning_duty: journalData.nextCleaningDuty || "",
-    }
-
-    const { error: journalError } = await supabase.from("journals").update(journalToUpdate).eq("id", id)
-
-    if (journalError) {
-      console.error("日誌データの更新エラー:", journalError)
-      return false
-    }
-
-    // 2. 既存の講義情報を削除
-    const { error: deletePeriodsError } = await supabase.from("periods").delete().eq("journal_id", id)
-
-    if (deletePeriodsError) {
-      console.error("講義情報の削除エラー:", deletePeriodsError)
-      return false
-    }
-
-    // 3. 新しい講義情報を保存
-    const periodsToSave: Period[] = []
-
-    // 昼間部の講義情報
-    journalData.dayPeriods.forEach((period: any, index: number) => {
-      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
-        periodsToSave.push({
-          journal_id: id,
-          period_number: index + 1,
-          subject: period.subject || "",
-          teacher: period.teacher || "",
-          content: period.content || "",
-          absences: period.absences || "",
-          in_out: period.inOut || "",
-          is_night: false,
-        })
-      }
+    // APIルートを使用してデータを更新
+    const response = await fetch(`/api/journals/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(journalData),
     })
 
-    // 夜間部の講義情報
-    journalData.nightPeriods.forEach((period: any, index: number) => {
-      if (period.subject || period.teacher || period.content || period.absences || period.inOut) {
-        periodsToSave.push({
-          journal_id: id,
-          period_number: index + 1,
-          subject: period.subject || "",
-          teacher: period.teacher || "",
-          content: period.content || "",
-          absences: period.absences || "",
-          in_out: period.inOut || "",
-          is_night: true,
-        })
-      }
-    })
-
-    if (periodsToSave.length > 0) {
-      const { error: periodsError } = await supabase.from("periods").insert(periodsToSave)
-
-      if (periodsError) {
-        console.error("講義情報の保存エラー:", periodsError)
-        return false
-      }
-    }
-
-    // 4. チェックリスト情報を更新
-    const checklistToUpdate: Partial<Checklist> = {
-      pc: journalData.checklist.pc || false,
-      mic: journalData.checklist.mic || false,
-      prints: journalData.checklist.prints || false,
-      journal: journalData.checklist.journal || false,
-      supplies: journalData.checklist.supplies || false,
-    }
-
-    const { error: checklistError } = await supabase.from("checklists").update(checklistToUpdate).eq("journal_id", id)
-
-    if (checklistError) {
-      console.error("チェックリスト情報の更新エラー:", checklistError)
-      return false
+    if (!response.ok) {
+      throw new Error(`APIエラー: ${response.status}`)
     }
 
     return true
@@ -564,7 +307,7 @@ export async function updateJournal(id: string, journalData: any) {
 // 日誌データの削除
 export async function deleteJournal(id: string) {
   // オフラインIDの場合はローカルストレージから削除
-  if (id.startsWith("offline_")) {
+  if (id.startsWith("offline_") || id.startsWith("sample-")) {
     try {
       const offlineJournals = getOfflineJournals()
       const filteredJournals = offlineJournals.filter((journal) => journal.id !== id)
@@ -577,22 +320,20 @@ export async function deleteJournal(id: string) {
   }
 
   try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      console.error("Supabaseクライアントが初期化されていません")
+    // ネットワーク接続をチェック
+    const isOnline = await checkNetworkConnection()
+    if (!isOnline) {
+      console.log("ネットワーク接続がないため、削除できません")
       return false
     }
 
-    // 関連するデータを削除
-    await supabase.from("periods").delete().eq("journal_id", id)
-    await supabase.from("checklists").delete().eq("journal_id", id)
+    // APIルートを使用してデータを削除
+    const response = await fetch(`/api/journals/${id}`, {
+      method: "DELETE",
+    })
 
-    // 日誌データを削除
-    const { error } = await supabase.from("journals").delete().eq("id", id)
-
-    if (error) {
-      console.error("日誌データの削除エラー:", error)
-      return false
+    if (!response.ok) {
+      throw new Error(`APIエラー: ${response.status}`)
     }
 
     return true
