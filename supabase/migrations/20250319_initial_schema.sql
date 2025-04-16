@@ -1,6 +1,3 @@
--- UUID拡張機能の有効化（既に有効化されている場合はスキップされます）
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- journals テーブル（日誌の基本情報）
 CREATE TABLE journals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -15,9 +12,7 @@ CREATE TABLE journals (
   next_daily_rep_2 TEXT,
   daily_comment TEXT,
   teacher_comment TEXT,
-  substitute TEXT,
-  current_cleaning_duty TEXT,
-  next_cleaning_duty TEXT
+  substitute TEXT
 );
 
 -- periods テーブル（講義情報）
@@ -39,8 +34,9 @@ CREATE TABLE checklists (
   journal_id UUID REFERENCES journals(id) ON DELETE CASCADE,
   pc BOOLEAN DEFAULT FALSE,
   mic BOOLEAN DEFAULT FALSE,
-  chalk BOOLEAN DEFAULT FALSE,
-  journal BOOLEAN DEFAULT FALSE
+  prints BOOLEAN DEFAULT FALSE,
+  journal BOOLEAN DEFAULT FALSE,
+  supplies BOOLEAN DEFAULT FALSE
 );
 
 -- インデックスの作成
@@ -48,12 +44,12 @@ CREATE INDEX idx_journals_date ON journals(date);
 CREATE INDEX idx_periods_journal_id ON periods(journal_id);
 CREATE INDEX idx_checklists_journal_id ON checklists(journal_id);
 
--- RLSポリシーの設定
+-- RLSポリシーの設定（実際のアプリでは認証を実装する場合に設定）
 ALTER TABLE journals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE periods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
 
--- 全ユーザーがアクセスできるポリシー
+-- 全ユーザーがアクセスできるポリシー（認証を実装しない場合）
 CREATE POLICY "全ユーザーがjournalsにアクセス可能" ON journals FOR ALL USING (true);
 CREATE POLICY "全ユーザーがperiodsにアクセス可能" ON periods FOR ALL USING (true);
 CREATE POLICY "全ユーザーがchecklistsにアクセス可能" ON checklists FOR ALL USING (true);

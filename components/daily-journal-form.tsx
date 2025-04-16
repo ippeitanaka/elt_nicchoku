@@ -36,9 +36,8 @@ import { useToast } from "@/hooks/use-toast"
 const checklistItems = [
   { id: "pc", label: "パソコン返却（モニターとの接続コードは返却しない）" },
   { id: "mic", label: "マイク返却（ピンマイクのみ返却）" },
-  { id: "prints", label: "授業プリント準備" },
+  { id: "chalk", label: "チョーク返却" },
   { id: "journal", label: "日直日誌入力" },
-  { id: "supplies", label: "おしぼり、チョーク" },
 ]
 
 const dayClasses = [
@@ -144,9 +143,8 @@ export default function DailyJournalForm() {
         checklist: {
           pc: checklist.pc || false,
           mic: checklist.mic || false,
-          prints: checklist.prints || false,
+          chalk: checklist.chalk || false,
           journal: checklist.journal || false,
-          supplies: checklist.supplies || false,
         },
         currentCleaningDuty,
         nextCleaningDuty,
