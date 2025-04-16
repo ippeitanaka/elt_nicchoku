@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import { ArrowLeft, Edit, Trash, Loader2, WifiOff } from "lucide-react"
+import { ArrowLeft, Edit, Trash, Loader2 } from "lucide-react"
 import { getJournalById, deleteJournal } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -16,7 +16,6 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
   const [journal, setJournal] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isOfflineData, setIsOfflineData] = useState(false)
 
   // 日誌データの取得
   useEffect(() => {
@@ -32,27 +31,7 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
           router.push("/journals")
           return
         }
-
-        // オフラインデータかどうかを確認
-        if (journalId.startsWith("offline_") || data.isOffline) {
-          setIsOfflineData(true)
-
-          // オフラインデータの場合、必要なプロパティを確保
-          const processedData = {
-            ...data,
-            periods: data.periods || [], // periodsがない場合は空配列を設定
-            checklist: data.checklist || {
-              pc: false,
-              mic: false,
-              prints: false,
-              journal: false,
-              supplies: false,
-            },
-          }
-          setJournal(processedData)
-        } else {
-          setJournal(data)
-        }
+        setJournal(data)
       } catch (error) {
         console.error("日誌データの取得エラー:", error)
         toast({
@@ -165,31 +144,16 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
     return foundClass ? foundClass.name : classId
   }
 
-  // オフラインデータの場合の講義情報の処理
-  let dayPeriods = []
-  let nightPeriods = []
-  let displayPeriods = []
+  // 講義情報の整理
+  const dayPeriods = journal.periods
+    .filter((p: any) => !p.is_night)
+    .sort((a: any, b: any) => a.period_number - b.period_number)
+  const nightPeriods = journal.periods
+    .filter((p: any) => p.is_night)
+    .sort((a: any, b: any) => a.period_number - b.period_number)
 
-  if (isOfflineData) {
-    // オフラインデータの場合、dayPeriodsとnightPeriodsを直接取得
-    dayPeriods = journal.dayPeriods || []
-    nightPeriods = journal.nightPeriods || []
-
-    // 表示する講義情報
-    displayPeriods = journal.dayType === "day" ? dayPeriods : nightPeriods
-  } else {
-    // オンラインデータの場合、従来の処理
-    dayPeriods = journal.periods
-      .filter((p: any) => !p.is_night)
-      .sort((a: any, b: any) => a.period_number - b.period_number)
-
-    nightPeriods = journal.periods
-      .filter((p: any) => p.is_night)
-      .sort((a: any, b: any) => a.period_number - b.period_number)
-
-    // 表示する講義情報
-    displayPeriods = journal.day_type === "day" ? dayPeriods : nightPeriods
-  }
+  // 表示する講義情報
+  const displayPeriods = journal.day_type === "day" ? dayPeriods : nightPeriods
 
   // 時限ごとの時間帯
   const getTimeSlot = (periodNumber: number, isNight: boolean) => {
@@ -210,18 +174,6 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
     { id: "supplies", label: "おしぼり、チョーク" },
   ]
 
-  // オフラインデータの場合のプロパティ名の調整
-  const dayType = isOfflineData ? journal.dayType : journal.day_type
-  const className = isOfflineData ? journal.className : journal.class_name
-  const dailyRep1 = isOfflineData ? journal.dailyRep && journal.dailyRep[0] : journal.daily_rep_1
-  const dailyRep2 = isOfflineData ? journal.dailyRep && journal.dailyRep[1] : journal.daily_rep_2
-  const nextDailyRep1 = isOfflineData ? journal.nextDailyRep && journal.nextDailyRep[0] : journal.next_daily_rep_1
-  const nextDailyRep2 = isOfflineData ? journal.nextDailyRep && journal.nextDailyRep[1] : journal.next_daily_rep_2
-  const dailyComment = isOfflineData ? journal.dailyComment : journal.daily_comment
-  const teacherComment = isOfflineData ? journal.teacherComment : journal.teacher_comment
-  const currentCleaningDuty = isOfflineData ? journal.currentCleaningDuty : journal.current_cleaning_duty
-  const nextCleaningDuty = isOfflineData ? journal.nextCleaningDuty : journal.next_cleaning_duty
-
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-6">
@@ -232,12 +184,6 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
             </Button>
           </Link>
           <h1 className="text-2xl font-bold">日誌詳細</h1>
-          {isOfflineData && (
-            <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs flex items-center">
-              <WifiOff className="h-3 w-3 mr-1" />
-              オフラインデータ
-            </div>
-          )}
         </div>
         <div className="flex gap-2">
           <Link href={`/journals/${journalId}/edit`}>
@@ -269,15 +215,15 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
             </div>
             <div>
               <p className="text-sm text-muted-foreground">クラス</p>
-              <p className="font-medium">{getClassName(className)}</p>
+              <p className="font-medium">{getClassName(journal.class_name)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">日直</p>
-              <p className="font-medium">{[dailyRep1, dailyRep2].filter(Boolean).join(", ")}</p>
+              <p className="font-medium">{[journal.daily_rep_1, journal.daily_rep_2].filter(Boolean).join(", ")}</p>
             </div>
             <div className="md:col-span-2 lg:col-span-4">
               <p className="text-sm text-muted-foreground">本日の清掃担当班</p>
-              <p className="font-medium">{currentCleaningDuty || "未設定"}</p>
+              <p className="font-medium">{journal.current_cleaning_duty || "未設定"}</p>
             </div>
           </div>
         </CardContent>
@@ -285,51 +231,40 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>{dayType === "day" ? "昼間部" : "夜間部"} 講義情報</CardTitle>
+          <CardTitle>{journal.day_type === "day" ? "昼間部" : "夜間部"} 講義情報</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
             {displayPeriods.length > 0 ? (
-              displayPeriods.map((period: any, index: number) => {
-                // オフラインデータとオンラインデータで異なるプロパティ名を処理
-                const periodNumber = isOfflineData ? index + 1 : period.period_number
-                const isNight = isOfflineData ? dayType === "night" : period.is_night
-                const subject = period.subject || ""
-                const teacher = period.teacher || ""
-                const content = period.content || ""
-                const absences = isOfflineData ? period.absences : period.absences || ""
-                const inOut = isOfflineData ? period.inOut : period.in_out || ""
-
-                return (
-                  <div key={index} className="border p-4 rounded-lg">
-                    <div className="font-medium mb-2">
-                      {periodNumber}時限 ({getTimeSlot(periodNumber, isNight)})
+              displayPeriods.map((period: any) => (
+                <div key={period.id} className="border p-4 rounded-lg">
+                  <div className="font-medium mb-2">
+                    {period.period_number}時限 ({getTimeSlot(period.period_number, period.is_night)})
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">科目名</p>
+                      <p>{period.subject || "未入力"}</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">科目名</p>
-                        <p>{subject || "未入力"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">担当講師</p>
-                        <p>{teacher || "未入力"}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-sm text-muted-foreground">講義内容</p>
-                        <p>{content || "未入力"}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-sm text-muted-foreground">欠席者</p>
-                        <p>{absences || "なし"}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-sm text-muted-foreground">途中入退室者</p>
-                        <p>{inOut || "なし"}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">担当講師</p>
+                      <p>{period.teacher || "未入力"}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-sm text-muted-foreground">講義内容</p>
+                      <p>{period.content || "未入力"}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-sm text-muted-foreground">欠席者</p>
+                      <p>{period.absences || "なし"}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-sm text-muted-foreground">途中入退室者</p>
+                      <p>{period.in_out || "なし"}</p>
                     </div>
                   </div>
-                )
-              })
+                </div>
+              ))
             ) : (
               <p className="text-center py-4 text-muted-foreground">講義情報がありません</p>
             )}
@@ -345,11 +280,11 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">日直コメント</p>
-              <p>{dailyComment || "コメントなし"}</p>
+              <p>{journal.daily_comment || "コメントなし"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">担任コメント</p>
-              <p>{teacherComment || "コメントなし"}</p>
+              <p>{journal.teacher_comment || "コメントなし"}</p>
             </div>
           </div>
         </CardContent>
@@ -387,11 +322,13 @@ export default function JournalDetailPage({ params }: { params: { id: string } }
           <div className="space-y-2">
             <div>
               <p className="text-sm text-muted-foreground">次回日直</p>
-              <p className="font-medium">{[nextDailyRep1, nextDailyRep2].filter(Boolean).join(", ") || "未定"}</p>
+              <p className="font-medium">
+                {[journal.next_daily_rep_1, journal.next_daily_rep_2].filter(Boolean).join(", ") || "未定"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">次回清掃担当班</p>
-              <p className="font-medium">{nextCleaningDuty || "未定"}</p>
+              <p className="font-medium">{journal.next_cleaning_duty || "未定"}</p>
             </div>
           </div>
         </CardContent>

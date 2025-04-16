@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
@@ -16,10 +16,6 @@ import {
   MessageCircle,
   CheckSquare,
   UserPlus,
-  Loader2,
-  AlertCircle,
-  Info,
-  WifiOff,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -34,16 +30,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { saveJournal, testSupabaseConnection, checkNetworkConnection } from "@/lib/supabase"
+import { saveJournal } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const checklistItems = [
-  { id: "pc", label: "パソコン返却（プロジェクターと接続するコードは返却しない）" },
-  { id: "mic", label: "マイク確認（ピンマイクのみ返却）" },
-  { id: "prints", label: "余ったプリント返却" },
-  { id: "journal", label: "日誌入力・保存" },
-  { id: "supplies", label: "備品確認" },
+  { id: "pc", label: "パソコン返却（モニターとの接続コードは返却しない）" },
+  { id: "mic", label: "マイク返却（ピンマイクのみ返却）" },
+  { id: "chalk", label: "チョーク返却" },
+  { id: "journal", label: "日直日誌入力" },
 ]
 
 const dayClasses = [
@@ -65,18 +59,9 @@ export default function DailyJournalForm() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [connectionStatus, setConnectionStatus] = useState<"checking" | "success" | "error" | "offline">("checking")
-  const [isOfflineMode, setIsOfflineMode] = useState(false)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [weather, setWeather] = useState<string>("sunny")
-  const [checklist, setChecklist] = useState({
-    pc: false,
-    mic: false,
-    prints: false,
-    journal: false,
-    supplies: false,
-  })
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<string>("day")
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [dailyRep1, setDailyRep1] = useState<string>("")
@@ -102,57 +87,6 @@ export default function DailyJournalForm() {
   // 状態変数を追加
   const [currentCleaningDuty, setCurrentCleaningDuty] = useState<string>("")
   const [nextCleaningDuty, setNextCleaningDuty] = useState<string>("")
-
-  // 接続状態の確認
-  useEffect(() => {
-    const checkConnectionStatus = async () => {
-      try {
-        // まずネットワーク接続を確認
-        const isOnline = await checkNetworkConnection()
-        if (!isOnline) {
-          setConnectionStatus("offline")
-          setConnectionError("インターネット接続がありません。オフラインモードで続行できます。")
-          return
-        }
-
-        // 環境変数の存在確認
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-        console.log("環境変数チェック:")
-        console.log("NEXT_PUBLIC_SUPABASE_URL exists:", !!supabaseUrl)
-        console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY exists:", !!supabaseAnonKey)
-
-        if (!supabaseUrl || !supabaseAnonKey) {
-          setConnectionStatus("error")
-          setConnectionError("Supabase接続情報が設定されていません。環境変数を確認してください。")
-          return
-        }
-
-        // Supabase接続テスト
-        const result = await testSupabaseConnection()
-        if (result.success) {
-          setConnectionStatus("success")
-          setConnectionError(null)
-        } else {
-          if (result.isOffline) {
-            setConnectionStatus("offline")
-          } else {
-            setConnectionStatus("error")
-          }
-          setConnectionError(result.message)
-        }
-      } catch (error) {
-        console.error("接続テストエラー:", error)
-        setConnectionStatus("error")
-        setConnectionError(
-          `接続テスト中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
-        )
-      }
-    }
-
-    checkConnectionStatus()
-  }, [])
 
   const handleChecklistChange = (id: string, checked: boolean) => {
     setChecklist((prev) => ({ ...prev, [id]: checked }))
@@ -209,9 +143,8 @@ export default function DailyJournalForm() {
         checklist: {
           pc: checklist.pc || false,
           mic: checklist.mic || false,
-          prints: checklist.prints || false,
+          chalk: checklist.chalk || false,
           journal: checklist.journal || false,
-          supplies: checklist.supplies || false,
         },
         currentCleaningDuty,
         nextCleaningDuty,
@@ -219,15 +152,13 @@ export default function DailyJournalForm() {
 
       console.log("保存するデータ:", journalData)
 
-      // Supabaseに保存（オフラインモードの場合はローカルストレージに保存）
-      const journalId = await saveJournal(journalData, isOfflineMode)
+      // Supabaseに保存
+      const journalId = await saveJournal(journalData)
 
       if (journalId) {
         toast({
-          title: isOfflineMode ? "オフライン保存完了" : "保存完了",
-          description: isOfflineMode
-            ? "日誌がローカルに保存されました。オンラインになったら同期できます。"
-            : "日誌が保存されました",
+          title: "保存完了",
+          description: "日誌が保存されました",
         })
 
         // 保存成功後、詳細ページに遷移
@@ -238,7 +169,6 @@ export default function DailyJournalForm() {
           description: "日誌の保存に失敗しました。ネットワーク接続とSupabaseの設定を確認してください。",
           variant: "destructive",
         })
-        setIsSubmitting(false)
       }
     } catch (error) {
       console.error("保存エラー:", error)
@@ -247,6 +177,7 @@ export default function DailyJournalForm() {
         description: `日誌の保存中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
         variant: "destructive",
       })
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -255,13 +186,7 @@ export default function DailyJournalForm() {
     // フォームをリセット
     setDate(new Date())
     setWeather("sunny")
-    setChecklist({
-      pc: false,
-      mic: false,
-      prints: false,
-      journal: false,
-      supplies: false,
-    })
+    setChecklist({})
     setSelectedClass("")
     setDailyRep1("")
     setDailyRep2("")
@@ -288,68 +213,12 @@ export default function DailyJournalForm() {
     })
   }
 
-  // オフラインモードに切り替え
-  const enableOfflineMode = () => {
-    setIsOfflineMode(true)
-    setConnectionStatus("offline")
-    toast({
-      title: "オフラインモード有効",
-      description: "オフラインモードで動作します。データはローカルに保存されます。",
-    })
-  }
-
   return (
     <form onSubmit={handleSubmit}>
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-primary">日直日誌を作成しましょう！</h1>
         <p className="text-muted-foreground">今日の授業の記録を残しましょう</p>
       </div>
-
-      {connectionStatus === "checking" && (
-        <Alert className="mb-6">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertTitle>接続確認中</AlertTitle>
-          <AlertDescription>Supabaseへの接続を確認しています...</AlertDescription>
-        </Alert>
-      )}
-
-      {connectionStatus === "error" && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>接続エラー</AlertTitle>
-          <AlertDescription>
-            {connectionError}
-            <div className="mt-2">
-              <p className="text-sm">
-                オフラインモードで続行することもできます。その場合、データはローカルに保存されます。
-              </p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={enableOfflineMode}>
-                オフラインモードで続行
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {connectionStatus === "offline" && (
-        <Alert className="mb-6 bg-amber-50 border-amber-200">
-          <WifiOff className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-600">オフラインモード</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            現在オフラインモードで動作しています。データはローカルに保存され、オンラインになったときに同期できます。
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {connectionStatus === "success" && (
-        <Alert className="mb-6 bg-green-50 border-green-200">
-          <Info className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-600">接続成功</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Supabaseへの接続に成功しました。データを保存できます。
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Tabs
         defaultValue="day"
@@ -800,21 +669,8 @@ export default function DailyJournalForm() {
           >
             リセット
           </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="cute-button bg-primary hover:bg-primary/90 flex items-center gap-2"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                保存中...
-              </>
-            ) : isOfflineMode ? (
-              "ローカルに保存"
-            ) : (
-              "保存"
-            )}
+          <Button type="submit" disabled={isSubmitting} className="cute-button bg-primary hover:bg-primary/90">
+            {isSubmitting ? "保存中..." : "保存"}
           </Button>
         </CardFooter>
       </Tabs>
