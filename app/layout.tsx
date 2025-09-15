@@ -2,6 +2,7 @@ import type React from "react"
 import "@/app/globals.css"
 import { Quicksand } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { GoogleAnalytics } from "@/components/google-analytics"
 
 const quicksand = Quicksand({
   subsets: ["latin"],
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={`${quicksand.className} font-sans`}>
+        <GoogleAnalytics />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <div className="min-h-screen bg-background">
             <header className="border-b bg-gradient-to-r from-primary/10 to-secondary/20">
