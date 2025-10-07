@@ -4,8 +4,11 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
-// Supabaseクライアントの作成
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Supabaseクライアントの作成（環境変数がない場合はダミーのURLを使用）
+export const supabase = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseAnonKey || "placeholder-anon-key"
+)
 
 // 日誌データの型定義
 export type Journal = {
@@ -316,5 +319,41 @@ export async function deleteJournal(id: string) {
   } catch (error) {
     console.error("削除処理中の予期せぬエラー:", error)
     return false
+  }
+}
+
+// 本日の日直を取得（各クラスの直近の日誌から次回日直を取得）
+export async function getTodaysDutyReps() {
+  try {
+    const allClasses = ["1a", "1b", "2a", "2b", "3a", "3b", "1n", "2n", "3n"]
+    const todaysDuty: Record<string, { rep1: string; rep2: string; date: string }> = {}
+
+    // 各クラスの最新の日誌を取得
+    for (const className of allClasses) {
+      const { data, error } = await supabase
+        .from("journals")
+        .select("next_daily_rep_1, next_daily_rep_2, date")
+        .eq("class_name", className)
+        .order("date", { ascending: false })
+        .limit(1)
+
+      if (error) {
+        console.error(`${className}の日誌取得エラー:`, error)
+        continue
+      }
+
+      if (data && data.length > 0) {
+        todaysDuty[className] = {
+          rep1: data[0].next_daily_rep_1 || "",
+          rep2: data[0].next_daily_rep_2 || "",
+          date: data[0].date,
+        }
+      }
+    }
+
+    return todaysDuty
+  } catch (error) {
+    console.error("本日の日直取得中の予期せぬエラー:", error)
+    return {}
   }
 }

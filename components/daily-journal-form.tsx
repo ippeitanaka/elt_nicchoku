@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
@@ -16,6 +16,7 @@ import {
   MessageCircle,
   CheckSquare,
   UserPlus,
+  Users,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { saveJournal } from "@/lib/supabase"
+import { saveJournal, getTodaysDutyReps } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 const checklistItems = [
@@ -87,6 +88,26 @@ export default function DailyJournalForm() {
   // 状態変数を追加
   const [currentCleaningDuty, setCurrentCleaningDuty] = useState<string>("")
   const [nextCleaningDuty, setNextCleaningDuty] = useState<string>("")
+
+  // 本日の日直を取得
+  const [todaysDuty, setTodaysDuty] = useState<Record<string, { rep1: string; rep2: string; date: string }>>({})
+  const [isLoadingDuty, setIsLoadingDuty] = useState(true)
+
+  // 本日の日直データを取得
+  useEffect(() => {
+    const fetchTodaysDuty = async () => {
+      try {
+        const duty = await getTodaysDutyReps()
+        setTodaysDuty(duty)
+      } catch (error) {
+        console.error("本日の日直取得エラー:", error)
+      } finally {
+        setIsLoadingDuty(false)
+      }
+    }
+
+    fetchTodaysDuty()
+  }, [])
 
   const handleChecklistChange = (id: string, checked: boolean) => {
     setChecklist((prev) => ({ ...prev, [id]: checked }))
@@ -215,11 +236,6 @@ export default function DailyJournalForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold text-primary">日直日誌を作成しましょう！</h1>
-        <p className="text-muted-foreground">今日の授業の記録を残しましょう</p>
-      </div>
-
       <Tabs
         defaultValue="day"
         onValueChange={(value) => {
@@ -241,6 +257,77 @@ export default function DailyJournalForm() {
             🌙 夜間部
           </TabsTrigger>
         </TabsList>
+
+        {/* 本日の日直セクション */}
+        <Card className="mb-6 cute-card bg-gradient-to-r from-primary/5 to-secondary/10">
+          <CardHeader className="cute-header">
+            <CardTitle className="section-title">
+              <Users className="h-5 w-5 section-title-icon" />
+              {format(new Date(), "M月d日（E）", { locale: ja })} 本日の日直
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {isLoadingDuty ? (
+              <div className="text-center py-4 text-muted-foreground">読み込み中...</div>
+            ) : (
+              <div className="space-y-3">
+                {activeTab === "day" ? (
+                  // 昼間部タブの場合
+                  <div className="space-y-2">
+                    {dayClasses.map((cls) => {
+                      const duty = todaysDuty[cls.id]
+                      return (
+                        <div
+                          key={cls.id}
+                          className="flex items-center justify-between border-2 border-primary/20 rounded-lg p-3 bg-white hover:shadow-md transition-shadow"
+                        >
+                          <div className="font-medium text-sm text-muted-foreground">{cls.name}</div>
+                          <div className="text-sm font-semibold">
+                            {duty?.rep1 || duty?.rep2 ? (
+                              <span>
+                                {duty.rep1}
+                                {duty.rep1 && duty.rep2 && " ・ "}
+                                {duty.rep2}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">未登録</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  // 夜間部タブの場合
+                  <div className="space-y-2">
+                    {nightClasses.map((cls) => {
+                      const duty = todaysDuty[cls.id]
+                      return (
+                        <div
+                          key={cls.id}
+                          className="flex items-center justify-between border-2 border-primary/20 rounded-lg p-3 bg-white hover:shadow-md transition-shadow"
+                        >
+                          <div className="font-medium text-sm text-muted-foreground">{cls.name}</div>
+                          <div className="text-sm font-semibold">
+                            {duty?.rep1 || duty?.rep2 ? (
+                              <span>
+                                {duty.rep1}
+                                {duty.rep1 && duty.rep2 && " ・ "}
+                                {duty.rep2}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">未登録</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="mb-6 cute-card">
           <CardHeader className="cute-header">
