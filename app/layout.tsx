@@ -10,7 +10,7 @@ const quicksand = Quicksand({
 })
 
 export const metadata = {
-  title: "救急救命士学科 日直日誌アプリ",
+  title: "日直日誌",
   description: "救急救命士学科の日直日誌を管理するアプリケーション",
     generator: 'v0.dev'
 }
